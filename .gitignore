@@ -50,3 +50,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+BOARD_lfv3_1/BOARD_lfv3-backups
+BOARD_lfv3_1/gerbers
+Linefollower_V3_code/build
+Linefollower_V3_code/.vscode
