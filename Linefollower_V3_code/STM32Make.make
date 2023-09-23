@@ -37,6 +37,7 @@ BUILD_DIR = build
 # C sources
 C_SOURCES =  \
 Core/Src/MPU6050.c \
+Core/Src/battery.c \
 Core/Src/main.c \
 Core/Src/memory.c \
 Core/Src/stm32f4xx_hal_msp.c \

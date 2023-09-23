@@ -24,6 +24,7 @@
 #include "memory.h"
 #include <stdio.h>
 #include "MPU6050.h"
+#include "battery.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,6 +62,7 @@ float adc_reading_float;
 uint8_t i2c_reading;
 extern uint8_t recieve;
 extern uint8_t sensors_enable;
+char uart_buffer[100];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -80,42 +82,7 @@ static void MX_TIM4_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-enum BatteryState{BatteryLow, BatteryMiddle,BatteryHigh, BatteryNotInit};
-typedef enum BatteryState BatteryState;
-void battery_monitor(){
-  #define THRE_BATT_VOLT (uint16_t)(4096/7.5/3.3*2.34 * 7.2)
-  static BatteryState last_battery_state = BatteryNotInit;
-  if(last_battery_state == BatteryNotInit){
-    htim4.Instance->PSC = 9000;
-    htim4.Instance->CCR2 = 120;
-  }
-  if(adc_readings[0] < THRE_BATT_VOLT){
-    if(last_battery_state != BatteryLow){
-      last_battery_state = BatteryLow;
-      HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, 1);
-      htim4.Instance->PSC = 2000;
-      htim4.Instance->CCR2 = 5000;
-      /*disable motors*/
-      htim8.Instance->CCR3 = 0;
-      htim8.Instance->CCR4 = 0;
-      htim8.Instance->CNT = 0;
-      HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_3);
-      HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_4);
-      /*Turn off sensors*/
-      HAL_GPIO_WritePin(SENSOR_ON_GPIO_Port, SENSOR_ON_Pin, 0);
-    }
-  
 
-  }
-  else if(adc_readings[0] >= THRE_BATT_VOLT + 15){
-    if(last_battery_state != BatteryHigh){
-      last_battery_state = BatteryHigh;
-      htim4.Instance->PSC = 3000;
-      htim4.Instance->CCR2 = 300;
-    }
-  }
-  #undef THRE_BATT_VOLT
-}
 
 /* USER CODE END 0 */
 
@@ -167,8 +134,10 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_GPIO_WritePin(PDN_GPIO_Port, PDN_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(WAKEUP_GPIO_Port, WAKEUP_Pin, GPIO_PIN_RESET);
+
+  HAL_GPIO_WritePin(PDN_GPIO_Port, PDN_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(WAKEUP_GPIO_Port, WAKEUP_Pin, GPIO_PIN_SET);
+
   HAL_GPIO_WritePin(STBY_TB_GPIO_Port, STBY_TB_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(AIN1_GPIO_Port,AIN1_Pin,1);
   HAL_GPIO_WritePin(AIN2_GPIO_Port,AIN2_Pin,0);
@@ -206,14 +175,16 @@ int main(void)
   HAL_Delay(2000);
   htim8.Instance->CCR3 = 0;
   htim8.Instance->CCR4 = 0;
-  
+  TURN_ON_SENSORS();
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    HAL_Delay(10);
     battery_monitor();
-    HAL_GPIO_WritePin(SENSOR_ON_GPIO_Port, SENSOR_ON_Pin, sensors_enable);
+    int l = get_battery_voltage_string(uart_buffer);
+    HAL_UART_Transmit(&huart1, uart_buffer, l, 1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -693,7 +664,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
