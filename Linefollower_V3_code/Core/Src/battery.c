@@ -1,7 +1,7 @@
 #include "main.h"
 #include "battery.h"
 #include <stdio.h>
-
+#include "line_sensors.h"
 #define THRE_BATT_VOLT (uint16_t)(4096/7.5/3.3*2.34 * 7.2)
 
 

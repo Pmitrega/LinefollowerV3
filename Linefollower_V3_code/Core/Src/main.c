@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include "MPU6050.h"
 #include "battery.h"
+#include "line_sensors.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -170,8 +171,8 @@ int main(void)
   uint32_t adc_reading_uart;
   int l;
   HAL_UART_Receive_IT(&huart1, &recieve, 1);
-  htim8.Instance->CCR3 = 30000;
-  htim8.Instance->CCR4 = 30000;
+  htim8.Instance->CCR3 = 10000;
+  htim8.Instance->CCR4 = 10000;
   HAL_Delay(2000);
   htim8.Instance->CCR3 = 0;
   htim8.Instance->CCR4 = 0;
@@ -183,8 +184,8 @@ int main(void)
   {
     HAL_Delay(10);
     battery_monitor();
-    int l = get_battery_voltage_string(uart_buffer);
-    HAL_UART_Transmit(&huart1, uart_buffer, l, 1000);
+    // int l = get_battery_voltage_string(uart_buffer);
+    // HAL_UART_Transmit(&huart1, uart_buffer, l, 1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -664,7 +665,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;

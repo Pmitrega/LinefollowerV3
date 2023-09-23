@@ -38,8 +38,12 @@ BUILD_DIR = build
 C_SOURCES =  \
 Core/Src/MPU6050.c \
 Core/Src/battery.c \
+Core/Src/line_sensors.c \
+Core/Src/madgwick.c \
 Core/Src/main.c \
 Core/Src/memory.c \
+Core/Src/motors.c \
+Core/Src/state_machine_ctrl.c \
 Core/Src/stm32f4xx_hal_msp.c \
 Core/Src/stm32f4xx_it.c \
 Core/Src/system_stm32f4xx.c \
