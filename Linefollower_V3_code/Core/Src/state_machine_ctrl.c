@@ -6,7 +6,12 @@
 #include "line_sensors.h"
 
 #define WAIT_FOR_UART()         while(uart_ready == FALSE && timeout_value < WAIT_FOR_UART_TIMEOUT){\
-                                timeout_value +=1;}
+                                timeout_value +=1;}\
+                                uart_ready = FALSE
+
+#define ENCODER_LEFT()          htim1.Instance->CNT
+#define ENCODER_RIGHT()         htim3.Instance->CNT
+
 RobotMode robot_state = Robot_InitMode;
 
 
@@ -15,10 +20,19 @@ extern uint16_t adc_readings[];
 extern UART_HandleTypeDef huart1;
 char uart_buffer_SM[100];
 extern uint8_t uart_ready;
+extern TIM_HandleTypeDef htim8;
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim3;
 
 void RobotManualModeManager(uint8_t command, int number){
     uint32_t timeout_value = 0;
-    if(command == 'k'){
+    if(command == 'l'){
+        htim8.Instance->CCR4 = (uint32_t)number;
+    }
+    else if(command == 'r'){
+        htim8.Instance->CCR3 = (uint32_t)number;
+    }
+    else if(command == 'k'){
         if(number == 0){
             TURN_OFF_SENSORS();
         }
@@ -32,11 +46,11 @@ void RobotManualModeManager(uint8_t command, int number){
             WAIT_FOR_UART();
             if(HAL_GPIO_ReadPin(SENSOR_ON_GPIO_Port, SENSOR_ON_Pin)){
                 WAIT_FOR_UART();
-                HAL_UART_Transmit_IT(&huart1, "K1\n", 20);
+                HAL_UART_Transmit_IT(&huart1, "K:1\n", 4);
             }
             else{
                 WAIT_FOR_UART();
-                HAL_UART_Transmit_IT(&huart1, "K0\n", 20);
+                HAL_UART_Transmit_IT(&huart1, "K:0\n", 4);
             }
         }
     }
@@ -68,6 +82,17 @@ void RobotManualModeManager(uint8_t command, int number){
         int l = get_battery_voltage_string(uart_buffer_SM);
         HAL_UART_Transmit_IT(&huart1, uart_buffer_SM, l);
     }
+    else if (command == 'e')
+    {
+        WAIT_FOR_UART();
+        /*
+        Gets encoder values
+        */
+        int l = sprintf(uart_buffer_SM, "E:%d %d\n", ENCODER_LEFT(), ENCODER_RIGHT());
+        HAL_UART_Transmit_IT(&huart1, uart_buffer_SM, l);
+    }
+    
+
 
 }
 

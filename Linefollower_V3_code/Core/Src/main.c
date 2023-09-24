@@ -26,6 +26,7 @@
 #include "MPU6050.h"
 #include "battery.h"
 #include "line_sensors.h"
+#include "IMU.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,6 +53,7 @@ I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim8;
 
 UART_HandleTypeDef huart1;
@@ -77,6 +79,7 @@ static void MX_TIM8_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -123,6 +126,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_I2C1_Init();
   MX_TIM4_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
   // HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
@@ -156,23 +160,20 @@ int main(void)
   MPU6050_sett.ACC_RANGE = MPU6050_ACC_2G;
   MPU6050_sett.GYRO_RANGE = MPU6050_GYRO_1000DPS;
   MPU6050_sett.DLPF = MPU6050_DLPF_5;
-  int accX;
-  int accY;
-  int accZ;
+
   HAL_Delay(30);
   MPU6050_wakeup();
   HAL_Delay(5);
   MPU6050_set_config(&MPU6050_sett);
-  
   HAL_Delay(1);
   update_counter();
-
-  uint8_t acc_reading;
+  HAL_TIM_Base_Start_IT(&htim7);
+  uint8_t acc_reading[20];
   uint32_t adc_reading_uart;
   int l;
   HAL_UART_Receive_IT(&huart1, &recieve, 1);
-  htim8.Instance->CCR3 = 10000;
-  htim8.Instance->CCR4 = 10000;
+  htim8.Instance->CCR3 = 0;
+  htim8.Instance->CCR4 = 0;
   HAL_Delay(2000);
   htim8.Instance->CCR3 = 0;
   htim8.Instance->CCR4 = 0;
@@ -182,10 +183,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(10);
+    HAL_Delay(1000);
     battery_monitor();
-    // int l = get_battery_voltage_string(uart_buffer);
-    // HAL_UART_Transmit(&huart1, uart_buffer, l, 1000);
+    send_IMU_raw_string();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -404,7 +404,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.ClockSpeed = 400000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -571,6 +571,44 @@ static void MX_TIM4_Init(void)
 }
 
 /**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 900-1;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 100;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
   * @brief TIM8 Initialization Function
   * @param None
   * @retval None
@@ -693,7 +731,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA2_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }

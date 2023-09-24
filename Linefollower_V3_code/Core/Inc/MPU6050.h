@@ -93,6 +93,7 @@ HAL_StatusTypeDef MPU6050_wakeup();
 void  MPU6050_default_setting(MPU6050_SETTINGS* sett);
 int MPU_get_acc(enum AXIS axis);
 int MPU_get_gyro(enum AXIS axis);
-
-
+void MPU_get_acc_burst(int* acc_data);
+void MPU_get_gyro_burst(int* gyro_data);
+void MPU_raw_to_SI(const int* i_data_acc,const int* i_data_gyro, float* o_data_acc, float* o_data_gyro);
 #endif

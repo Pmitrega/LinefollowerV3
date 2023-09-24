@@ -36,6 +36,7 @@ BUILD_DIR = build
 ######################################
 # C sources
 C_SOURCES =  \
+Core/Src/IMU.c \
 Core/Src/MPU6050.c \
 Core/Src/battery.c \
 Core/Src/line_sensors.c \
