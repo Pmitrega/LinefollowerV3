@@ -36,7 +36,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     num_cmd[num_pointer] = recieve;
     num_pointer++;
   }
-  else if(num_pointer > 0 && num_ready == 1){
+  else if(num_ready == 1){
     num_cmd[num_pointer] = '\0';
     if(num_cmd[0] != '-'){
       handle_command(command, atoi(num_cmd));

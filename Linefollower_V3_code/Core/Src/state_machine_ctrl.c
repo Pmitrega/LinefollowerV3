@@ -32,6 +32,9 @@ void RobotManualModeManager(uint8_t command, int number){
     else if(command == 'r'){
         htim8.Instance->CCR3 = (uint32_t)number;
     }
+    else if(command == 'x'){
+        NVIC_SystemReset();
+    }
     else if(command == 'k'){
         if(number == 0){
             TURN_OFF_SENSORS();

@@ -10,7 +10,7 @@
 /**
  * @brief Send No of resets of MCU and increment it.
 */
-void update_counter();
+int update_counter();
 
 /**
  * @brief save uint16 on specified address

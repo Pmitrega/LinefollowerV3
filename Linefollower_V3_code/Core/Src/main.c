@@ -27,6 +27,8 @@
 #include "battery.h"
 #include "line_sensors.h"
 #include "IMU.h"
+#include "motors.h"
+#include "uart_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +57,7 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim8;
+TIM_HandleTypeDef htim13;
 
 UART_HandleTypeDef huart1;
 
@@ -65,6 +68,8 @@ float adc_reading_float;
 uint8_t i2c_reading;
 extern uint8_t recieve;
 extern uint8_t sensors_enable;
+extern int velocity_left_int;
+extern int velocity_right_int;
 char uart_buffer[100];
 /* USER CODE END PV */
 
@@ -80,13 +85,21 @@ static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_TIM7_Init(void);
+static void MX_TIM13_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+  if(htim == &htim7){
+    UpdateIMU();
+  }
+  else if(htim == &htim13){
+    AdaptiveVelocityEstimation();
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -127,8 +140,8 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM4_Init();
   MX_TIM7_Init();
+  MX_TIM13_Init();
   /* USER CODE BEGIN 2 */
-  // HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
@@ -150,7 +163,6 @@ int main(void)
   HAL_GPIO_WritePin(BIN2_GPIO_Port,BIN2_Pin,0);
   HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, 1);
   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, 1);
-  HAL_GPIO_WritePin(SENSOR_ON_GPIO_Port, SENSOR_ON_Pin, 1);
 
   uint8_t read_data;
   uint8_t reading;
@@ -161,31 +173,35 @@ int main(void)
   MPU6050_sett.GYRO_RANGE = MPU6050_GYRO_1000DPS;
   MPU6050_sett.DLPF = MPU6050_DLPF_5;
 
+  InitEncoders();
   HAL_Delay(30);
   MPU6050_wakeup();
   HAL_Delay(5);
   MPU6050_set_config(&MPU6050_sett);
   HAL_Delay(1);
   update_counter();
-  HAL_TIM_Base_Start_IT(&htim7);
-  uint8_t acc_reading[20];
-  uint32_t adc_reading_uart;
-  int l;
   HAL_UART_Receive_IT(&huart1, &recieve, 1);
-  htim8.Instance->CCR3 = 0;
-  htim8.Instance->CCR4 = 0;
-  HAL_Delay(2000);
-  htim8.Instance->CCR3 = 0;
-  htim8.Instance->CCR4 = 0;
   TURN_ON_SENSORS();
+  HAL_Delay(2000);
+  calibrate_gyro();
+  HAL_TIM_Base_Start_IT(&htim7);
+  HAL_TIM_Base_Start_IT(&htim13);
+  ManageRobotStateMachine(0, 0);
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(1000);
+    HAL_Delay(500);
     battery_monitor();
-    send_IMU_raw_string();
+            // WAIT_FOR_UART();
+        /*
+        Gets encoder values
+        */
+
+    int l = sprintf(uart_buffer, "V:%d %d\nE:%d %d\n", velocity_left_int, velocity_right_int, ENCODER_LEFT, ENCODER_RIGHT, 3.32);
+    HAL_UART_Transmit_IT(&huart1, uart_buffer, l);
+    // send_quaternion();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -590,7 +606,7 @@ static void MX_TIM7_Init(void)
   htim7.Instance = TIM7;
   htim7.Init.Prescaler = 900-1;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 100;
+  htim7.Init.Period = 200;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
@@ -631,7 +647,7 @@ static void MX_TIM8_Init(void)
   htim8.Instance = TIM8;
   htim8.Init.Prescaler = 0;
   htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim8.Init.Period = 65535;
+  htim8.Init.Period = 10000;
   htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim8.Init.RepetitionCounter = 0;
   htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -688,6 +704,37 @@ static void MX_TIM8_Init(void)
 }
 
 /**
+  * @brief TIM13 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM13_Init(void)
+{
+
+  /* USER CODE BEGIN TIM13_Init 0 */
+
+  /* USER CODE END TIM13_Init 0 */
+
+  /* USER CODE BEGIN TIM13_Init 1 */
+
+  /* USER CODE END TIM13_Init 1 */
+  htim13.Instance = TIM13;
+  htim13.Init.Prescaler = 45;
+  htim13.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim13.Init.Period = 1000;
+  htim13.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim13) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM13_Init 2 */
+
+  /* USER CODE END TIM13_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -731,7 +778,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA2_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 1, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }

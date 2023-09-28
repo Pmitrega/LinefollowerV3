@@ -4,7 +4,12 @@ static uint8_t MSB;
 static uint8_t LSB;
 static uint8_t MPU6050_i2c_buffer;
 MPU6050_SETTINGS MPU_global_settings;
+
+
 #define I2C_TIMEOUT 30
+#define DEG_TO_RAD (3.14159/180.f)
+
+
 int MPU_get_acc(enum AXIS axis){
     if(axis == X){
         HAL_I2C_Mem_Read(&MPU6050_I2C_PORT, MPU6050_ADDR, MPU6050_ACCEL_XOUT_L, 1, &LSB, 1, I2C_TIMEOUT);
@@ -92,9 +97,9 @@ void MPU_raw_to_SI(const int* i_data_acc,const int* i_data_gyro, float* o_data_a
     o_data_acc[0] = ((float)i_data_acc[0]/16384.f)/(float)(1<<MPU_global_settings.ACC_RANGE);
     o_data_acc[1] = ((float)i_data_acc[1]/16384.f)/(float)(1<<MPU_global_settings.ACC_RANGE);
     o_data_acc[2] = ((float)i_data_acc[2]/16384.f)/(float)(1<<MPU_global_settings.ACC_RANGE);
-    o_data_gyro[0] = ((float)i_data_gyro[0]/131.f)/(float)(1<<MPU_global_settings.GYRO_RANGE);
-    o_data_gyro[1] = ((float)i_data_gyro[1]/131.f)/(float)(1<<MPU_global_settings.GYRO_RANGE);
-    o_data_gyro[2] = ((float)i_data_gyro[2]/131.f)/(float)(1<<MPU_global_settings.GYRO_RANGE);
+    o_data_gyro[0] = ((float)i_data_gyro[0]/131.f * DEG_TO_RAD)/(float)(1<<MPU_global_settings.GYRO_RANGE);
+    o_data_gyro[1] = ((float)i_data_gyro[1]/131.f * DEG_TO_RAD)/(float)(1<<MPU_global_settings.GYRO_RANGE);
+    o_data_gyro[2] = ((float)i_data_gyro[2]/131.f * DEG_TO_RAD)/(float)(1<<MPU_global_settings.GYRO_RANGE);
 
 }
 
