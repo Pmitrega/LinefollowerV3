@@ -70,6 +70,8 @@ extern uint8_t recieve;
 extern uint8_t sensors_enable;
 extern int velocity_left_int;
 extern int velocity_right_int;
+extern int desired_left_velocity;
+extern int desired_right_velocity;
 char uart_buffer[100];
 /* USER CODE END PV */
 
@@ -94,10 +96,11 @@ static void MX_TIM13_Init(void);
 /* USER CODE BEGIN 0 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
   if(htim == &htim7){
-    UpdateIMU();
+    //UpdateIMU();
   }
   else if(htim == &htim13){
     AdaptiveVelocityEstimation();
+    LeftMotorPID();
   }
 }
 
@@ -157,10 +160,6 @@ int main(void)
   HAL_GPIO_WritePin(WAKEUP_GPIO_Port, WAKEUP_Pin, GPIO_PIN_SET);
 
   HAL_GPIO_WritePin(STBY_TB_GPIO_Port, STBY_TB_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(AIN1_GPIO_Port,AIN1_Pin,1);
-  HAL_GPIO_WritePin(AIN2_GPIO_Port,AIN2_Pin,0);
-  HAL_GPIO_WritePin(BIN1_GPIO_Port,BIN1_Pin,1);
-  HAL_GPIO_WritePin(BIN2_GPIO_Port,BIN2_Pin,0);
   HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, 1);
   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, 1);
 
@@ -187,6 +186,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_Base_Start_IT(&htim13);
   ManageRobotStateMachine(0, 0);
+  desired_left_velocity = 1000;
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */

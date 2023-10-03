@@ -15,14 +15,33 @@
 
 #define ENCODER_OVERFLOW_THRESHOLD      (10000)
 
+
+
+float left_motor_P = 16.f;
+float left_motor_I = 0.3f;
+float left_motor_D = 0.f;
+
+float right_motor_P = 16.f;
+float right_motor_I = 0.3f;
+float right_motor_D = 0.f;
+
+
 float velocity_left = 0;
 float velocity_right = 0;
 
 int velocity_left_int = 0;
 int velocity_right_int = 0;
 
+int desired_left_velocity;
+int desired_right_velocity;
+
+
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim8;
+
+#define SET_RIGHT_PWM(PWM_VALUE)        htim8.Instance->CCR3 = (PWM_VALUE)
+#define SET_LEFT_PWM(PWM_VALUE)         htim8.Instance->CCR4 = (PWM_VALUE)
 
 void InitEncoders(){
     htim1.Instance->CNT = ENCODER_INITIAL_VALUE;
@@ -94,3 +113,78 @@ void AdaptiveVelocityEstimation(){
         right_count = 0;
     }
 }
+
+
+/** @brief Sets Left motor PWM with direction.
+ *
+ *  @param PMWValue integer from -10000 to 10000
+ */
+void SetLeftMotorPWM(int PWMValue){
+    if(PWMValue >= 0){
+        if(PWMValue > 10000){
+            PWMValue = 10000;
+        }
+        SET_LEFT_DIRECTION(FORWARD);
+        SET_LEFT_PWM(PWMValue);
+    }
+    else{
+        PWMValue = -PWMValue;
+        if(PWMValue > 10000){
+            PWMValue = 10000;
+        }
+        SET_LEFT_DIRECTION(BACKWARD);
+        SET_LEFT_PWM(PWMValue);
+
+    }
+    
+}
+
+/** @brief Sets Right motor PWM with direction.
+ *
+ *  @param PMWValue integer from -10000 to 10000
+ */
+void SetRightMotorPWM(int PWMValue){
+    if(PWMValue >= 0){
+        if(PWMValue > 10000){
+            PWMValue = 10000;
+        }
+        SET_RIGHT_DIRECTION(FORWARD);
+        SET_RIGHT_PWM(PWMValue);
+    }
+    else{
+        PWMValue = -PWMValue;
+        if(PWMValue > 10000){
+            PWMValue = 10000;
+        }
+        SET_RIGHT_DIRECTION(BACKWARD);
+        SET_RIGHT_PWM(PWMValue);
+
+    }
+    
+}
+
+/*
+Should be called every 1 ms
+*/
+void LeftMotorPID(){
+    int control_value = 0;
+    static float error_integral = 0;
+    if(error_integral > 20000){
+        error_integral = 20000;
+    }
+    else if(error_integral < -20000){
+        error_integral = -20000;
+    }
+    float error =(float) (desired_left_velocity - velocity_left_int);
+    control_value = (int)(left_motor_P * error + error_integral * left_motor_I);
+    error_integral += error;
+    SetLeftMotorPWM(control_value);
+}
+
+void RightMotorPID(){
+
+}
+
+/*
+Should be called every 1 ms
+*/
