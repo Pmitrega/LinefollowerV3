@@ -51,25 +51,26 @@ void set_batt_led(BatteryState batt_state){
 }
 
 /******Public Functions Start******/
+#define BATTER_FILT_ALPHA (0.9f)
 void battery_monitor(){
-    if(battery_state == BatteryNotInit){
+    static uint16_t battery_readings_filtered = THRE_BATT_VOLT + 200;
+    if(battery_readings_filtered == BatteryNotInit){
         set_batt_led(battery_state);
     }
-    if(adc_readings[0] < THRE_BATT_VOLT){
+    if(battery_readings_filtered < THRE_BATT_VOLT){
         if(battery_state != BatteryLow){
-        battery_state = BatteryLow;
-        set_batt_led(battery_state);
-        disable_motors();
+            battery_state = BatteryLow;
+            set_batt_led(battery_state);
+            disable_motors();
         }
     }
-
-
-    else if(adc_readings[0] >= THRE_BATT_VOLT + 15){
+    else if(battery_readings_filtered >= THRE_BATT_VOLT + 15){
         if(battery_state != BatteryHigh){
-        battery_state = BatteryHigh;
-        set_batt_led(battery_state);
+            battery_state = BatteryHigh;
+            set_batt_led(battery_state);
         }
     }
+    battery_readings_filtered = (uint16_t)((float)battery_readings_filtered * BATTER_FILT_ALPHA + (1.f-BATTER_FILT_ALPHA) * (float)adc_readings[0]);
 }
 
 int get_battery_voltage_string(char* buffer){

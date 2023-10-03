@@ -4,6 +4,7 @@
 #include "uart_handler.h"
 #include <stdio.h>
 #include "line_sensors.h"
+#include "motors.h"
 
 #define WAIT_FOR_UART()         while(uart_ready == FALSE && timeout_value < WAIT_FOR_UART_TIMEOUT){\
                                 timeout_value +=1;}\
@@ -23,14 +24,18 @@ extern uint8_t uart_ready;
 extern TIM_HandleTypeDef htim8;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim3;
+extern int desired_left_velocity;
+extern int desired_right_velocity;
 
 void RobotManualModeManager(uint8_t command, int number){
     uint32_t timeout_value = 0;
     if(command == 'l'){
-        htim8.Instance->CCR4 = (uint32_t)number;
+        // SetLeftMotorPWM(number);
+        desired_left_velocity = number;
     }
     else if(command == 'r'){
-        htim8.Instance->CCR3 = (uint32_t)number;
+        // SetRightMotorPWM(number);
+        desired_right_velocity = number;
     }
     else if(command == 'x'){
         NVIC_SystemReset();
@@ -94,7 +99,15 @@ void RobotManualModeManager(uint8_t command, int number){
         int l = sprintf(uart_buffer_SM, "E:%d %d\n", ENCODER_LEFT(), ENCODER_RIGHT());
         HAL_UART_Transmit_IT(&huart1, uart_buffer_SM, l);
     }
-    
+    else if(command == 's'){
+        WAIT_FOR_UART();
+        /*
+        Gets sensors values
+        */
+        int l = sprintf(uart_buffer_SM, "%d %d %d %d %d %d %d %d %d %d\n", adc_readings[1], adc_readings[2], adc_readings[3], adc_readings[4], adc_readings[5],
+                                                                           adc_readings[6], adc_readings[7], adc_readings[8], adc_readings[9], adc_readings[10]);
+        HAL_UART_Transmit_IT(&huart1, uart_buffer_SM, l);
+    }
 
 
 }

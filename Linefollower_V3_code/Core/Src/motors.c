@@ -15,14 +15,21 @@
 
 #define ENCODER_OVERFLOW_THRESHOLD      (10000)
 
+#define MOTOR_INTEGRAL_WINDUP_LIMIT     (20000)
+
+#define LEFT_MOTOR_PWM_START            (150)
+#define RIGHT_MOTOR_PWM_START           (240)
+
+#define LEFT_MOTOR_PWM_COEFF            (5.30f)
+#define RIGHT_MOTOR_PWM_COEFF           (5.10f)
 
 
-float left_motor_P = 16.f;
-float left_motor_I = 0.3f;
+float left_motor_P = 8.f;
+float left_motor_I = 0.05f;
 float left_motor_D = 0.f;
 
-float right_motor_P = 16.f;
-float right_motor_I = 0.3f;
+float right_motor_P = 8.f;
+float right_motor_I = 0.05f;
 float right_motor_D = 0.f;
 
 
@@ -84,11 +91,12 @@ int LeftEncoderDifference(){
 /*
 Adaptive velocity estimation with changing sampling time from 10 to 200ms
 */
-void AdaptiveVelocityEstimation(){
+int AdaptiveVelocityEstimation(){
     static uint16_t left_count = 0;
     static uint16_t right_count = 0;
     static int velocity_right_temp = 0;
     static int velocity_left_temp = 0;
+    int velocity_update_flag = 0;
 
     if( ((velocity_left_temp < 25) && (velocity_left_temp > -25) && left_count < 200) || left_count < 10 ){
         left_count +=1;
@@ -100,6 +108,7 @@ void AdaptiveVelocityEstimation(){
         // velocity_left_int = (int)left_count;
         velocity_left_temp = 0;
         left_count = 0;
+        velocity_update_flag = 1;
     }
     if( ((velocity_right_temp < 25) && (velocity_right_temp > -25) && right_count < 200) || right_count < 10){
         right_count +=1;
@@ -111,6 +120,7 @@ void AdaptiveVelocityEstimation(){
         // velocity_right_int = (int)right_count;
         velocity_right_temp = 0;
         right_count = 0;
+        velocity_update_flag = 1;
     }
 }
 
@@ -169,22 +179,36 @@ Should be called every 1 ms
 void LeftMotorPID(){
     int control_value = 0;
     static float error_integral = 0;
-    if(error_integral > 20000){
-        error_integral = 20000;
+    if(error_integral > MOTOR_INTEGRAL_WINDUP_LIMIT){
+        error_integral = MOTOR_INTEGRAL_WINDUP_LIMIT;
     }
-    else if(error_integral < -20000){
-        error_integral = -20000;
+    else if(error_integral < -MOTOR_INTEGRAL_WINDUP_LIMIT){
+        error_integral = -MOTOR_INTEGRAL_WINDUP_LIMIT;
     }
     float error =(float) (desired_left_velocity - velocity_left_int);
-    control_value = (int)(left_motor_P * error + error_integral * left_motor_I);
+    control_value = (int)(left_motor_P * error + error_integral * left_motor_I) + LEFT_MOTOR_PWM_START + (int)(LEFT_MOTOR_PWM_COEFF * (float)desired_left_velocity);
     error_integral += error;
     SetLeftMotorPWM(control_value);
-}
-
-void RightMotorPID(){
-
 }
 
 /*
 Should be called every 1 ms
 */
+
+void RightMotorPID(){
+    int control_value = 0;
+    static float error_integral = 0;
+    /*AntiWindup of integral*/
+    if(error_integral > MOTOR_INTEGRAL_WINDUP_LIMIT){
+        error_integral = MOTOR_INTEGRAL_WINDUP_LIMIT;
+    }
+    else if(error_integral < -MOTOR_INTEGRAL_WINDUP_LIMIT){
+        error_integral = -MOTOR_INTEGRAL_WINDUP_LIMIT;
+    }
+
+    float error =(float) (desired_right_velocity - velocity_right_int);
+    control_value = (int)(right_motor_P * error + error_integral * right_motor_I) + RIGHT_MOTOR_PWM_START + (int)(RIGHT_MOTOR_PWM_COEFF * (float)desired_right_velocity);
+    error_integral += error;
+    SetRightMotorPWM(control_value);
+}
+

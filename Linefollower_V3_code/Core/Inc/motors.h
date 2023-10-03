@@ -3,10 +3,11 @@
 
 #include "main.h"
 void InitEncoders();
-void AdaptiveVelocityEstimation();
+int AdaptiveVelocityEstimation();
 void SetLeftMotorPWM(int PWMValue);
 void SetRightMotorPWM(int PWMValue);
 void LeftMotorPID();
+void RightMotorPID();
 #define ENCODER_LEFT                    (htim1.Instance->CNT)
 #define ENCODER_RIGHT                   (htim3.Instance->CNT)
 

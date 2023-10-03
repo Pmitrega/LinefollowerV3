@@ -29,6 +29,7 @@
 #include "IMU.h"
 #include "motors.h"
 #include "uart_handler.h"
+#include "line_sensors.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,12 +96,19 @@ static void MX_TIM13_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+  static uint16_t tim13_div_cnt = 0;
   if(htim == &htim7){
     //UpdateIMU();
   }
+  /*
+    htim13 - Called every 1ms
+  */
   else if(htim == &htim13){
     AdaptiveVelocityEstimation();
     LeftMotorPID();
+    RightMotorPID();
+    EstimateAngle();
+    tim13_div_cnt +=1;
   }
 }
 
@@ -186,7 +194,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_Base_Start_IT(&htim13);
   ManageRobotStateMachine(0, 0);
-  desired_left_velocity = 1000;
+  // desired_left_velocity = 1000;
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */

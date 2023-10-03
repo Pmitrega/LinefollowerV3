@@ -38,17 +38,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     command = recieve;
     num_pointer = 0;
   }
-  else if(num_ready && ((recieve >= '0' && recieve <='9') || recieve == '-') && num_pointer < 10){
+  else if(num_ready && ((recieve >= '0' && recieve <='9') || recieve == '-' || recieve == '+') && num_pointer < 10){
     num_cmd[num_pointer] = recieve;
     num_pointer++;
   }
   else if(num_ready == 1){
     num_cmd[num_pointer] = '\0';
-    if(num_cmd[0] != '-'){
+    if(num_cmd[0] != '+'){
       handle_command(command, atoi(num_cmd));
     }
     else{
-      handle_command(command, '-');
+      handle_command(command, '+');
     }
     num_ready = 0;
   }
