@@ -14,7 +14,13 @@ uint8_t sensors_enable = 0;
 extern int auto_control_flag;
 extern char uart_buffer[100];
 
-
+/**
+* @brief Function below is called from HAL_UART_RxCpltCallback
+*        when proper command has been recieved
+* @param command - letters from a-z
+* @param number  - number from 0 to 9 999 999 999
+* @related HAL_UART_RxCpltCallback
+*/
 void handle_command(uint8_t cmd,int number){
   ManageRobotStateMachine(cmd, number);
 }
