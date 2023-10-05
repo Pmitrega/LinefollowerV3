@@ -63,16 +63,10 @@ void RobotManualModeManager(uint8_t command, int number){
         }
     }
     else if(command == 'm'){
-        switch (number)
-        {
-        case Robot_AutoMode:
-            WAIT_FOR_UART();
-            HAL_UART_Transmit_IT(&huart1, "Entering Auto Mode\n", 20);
-            robot_state = Robot_AutoMode;
-            break;
-        default:
-            break;
-        }
+        WAIT_FOR_UART();
+        robot_state = Robot_AutoMode;
+        HAL_UART_Transmit_IT(&huart1, "Entering Auto Mode\n", 20);
+        
     }
     else if(command == 'd'){
         if(number == 2){
@@ -110,6 +104,7 @@ void RobotManualModeManager(uint8_t command, int number){
     }
 
 
+
 }
 
 void RobotAutoModeManager(uint8_t command, int number){
@@ -125,21 +120,18 @@ void RobotAutoModeManager(uint8_t command, int number){
             /*
             Here we will disable linefollower
             */
-           robot_auto_follow = 0;
+            desired_left_velocity = 0;
+            desired_right_velocity = 0;
+            robot_auto_follow = 0;
         }
     }
     else if(command == 'm'){
-        switch (number)
-        {
-        case Robot_ManualMode:
-            /*remember to disable lf auto follow*/
             WAIT_FOR_UART();
             HAL_UART_Transmit_IT(&huart1, "Entering Manual Mode\n", 22);
+            robot_auto_follow = 0;
+            desired_left_velocity = 0;
+            desired_right_velocity = 0;
             robot_state = Robot_ManualMode;
-            break;
-        default:
-            break;
-        }
     }
     else if(command == 'b'){
         WAIT_FOR_UART();

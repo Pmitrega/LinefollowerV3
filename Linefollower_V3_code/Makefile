@@ -67,9 +67,10 @@ Core/Src/uart_handler.c\ \
 Core/Src/state_machine_ctrl.c\ \
 Core/Src/line_sensors.c\ \
 Core/Src/madgwick.c\ \
-Core/Src/IMU.c\ \
-Core/Src/battery.c\ \
-Core/Src/motors.c
+Core/Src/IMU.c \
+Core/Src/battery.c \
+Core/Src/motors.c \
+Core/Src/lf_control.c 
 
 # ASM sources
 ASM_SOURCES =  \

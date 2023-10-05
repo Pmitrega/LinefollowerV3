@@ -30,6 +30,8 @@
 #include "motors.h"
 #include "uart_handler.h"
 #include "line_sensors.h"
+#include "state_machine_ctrl.h"
+#include "lf_control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -73,7 +75,11 @@ extern int velocity_left_int;
 extern int velocity_right_int;
 extern int desired_left_velocity;
 extern int desired_right_velocity;
+extern uint8_t black_detection_table[];
 char uart_buffer[100];
+extern RobotMode robot_state;
+extern uint8_t robot_auto_follow;
+int est_angle = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -107,7 +113,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     AdaptiveVelocityEstimation();
     LeftMotorPID();
     RightMotorPID();
-    EstimateAngle();
+    est_angle = (int)EstimateAngle();
+    if(robot_auto_follow){
+      PIDLineControl();
+    }
     tim13_div_cnt +=1;
   }
 }
@@ -173,7 +182,7 @@ int main(void)
 
   uint8_t read_data;
   uint8_t reading;
-  uint8_t uart_buffer[50];
+  uint8_t uart_buffer[100];
   MPU6050_SETTINGS MPU6050_sett;
   MPU6050_default_setting(&MPU6050_sett);
   MPU6050_sett.ACC_RANGE = MPU6050_ACC_2G;
@@ -207,7 +216,11 @@ int main(void)
         Gets encoder values
         */
 
-    int l = sprintf(uart_buffer, "V:%d %d\nE:%d %d\n", velocity_left_int, velocity_right_int, ENCODER_LEFT, ENCODER_RIGHT, 3.32);
+    // int l = sprintf(uart_buffer, "V:%d %d\nE:%d %d\n", velocity_left_int, velocity_right_int, ENCODER_LEFT, ENCODER_RIGHT, 3.32);
+
+    //int l = sprintf(uart_buffer, "V:%u %u %u %u %u %u %u %u %u %u\n", black_detection_table[0], black_detection_table[1], black_detection_table[2], black_detection_table[3], black_detection_table[4],
+    //                                                                  black_detection_table[5], black_detection_table[6], black_detection_table[7], black_detection_table[8], black_detection_table[9]);
+    int l = sprintf(uart_buffer, "A:%d\n", est_angle);
     HAL_UART_Transmit_IT(&huart1, uart_buffer, l);
     // send_quaternion();
     /* USER CODE END WHILE */
