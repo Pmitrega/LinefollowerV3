@@ -70,7 +70,8 @@ Core/Src/madgwick.c\ \
 Core/Src/IMU.c \
 Core/Src/battery.c \
 Core/Src/motors.c \
-Core/Src/lf_control.c 
+Core/Src/lf_control.c \
+Core/Src/data_loging.c
 
 # ASM sources
 ASM_SOURCES =  \

@@ -11,8 +11,8 @@ const uint16_t *sensor_readings = adc_readings + 1;
 
 uint16_t sensor_white_value[10] = {1697, 1738, 1489, 1381, 1492,
                                    1891, 1711, 1991, 1840, 1628}; 
-uint16_t sensor_black_value[10] = {1023, 836, 589, 534, 601,
-                                   868 , 770, 931, 993, 911};
+uint16_t sensor_black_value[10] = {790, 654, 549, 842, 654,
+                                   793 , 868, 808, 703, 655};
 
 uint8_t black_detection_table[10] = {0};
 
@@ -32,7 +32,7 @@ float EstimateAngle(){
         }
         
     }
-    if (num_of_detections == 0){
+    if (num_of_detections == 0 || num_of_detections  > 2){
         return last_est_angle;
     }
     else{
@@ -41,3 +41,30 @@ float EstimateAngle(){
     }
 }
 
+float sens_to_float(){
+    float s_read = 0;
+    for(int i = 0; i <10; i++){
+        if(black_detection_table[i]){
+            s_read += (float)(2<<i);
+        }
+    }
+    return s_read;
+}
+
+
+int check_no_detections(){
+    static int no_detections = 0;
+    int detected = 0;
+    for(int i = 0 ;i<10;i++){
+        if(black_detection_table[i]){
+            detected = 1;
+            break;
+        }
+    }
+    if(detected == 0){
+        no_detections+=1;
+    }
+    else{
+        no_detections = 0;
+    }
+}

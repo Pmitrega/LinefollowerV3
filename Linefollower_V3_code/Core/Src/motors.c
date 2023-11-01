@@ -2,7 +2,7 @@
 
 #define MOTOR_PULSE_PER_REVOLUTION (180.f)
 
-#define ENCODER_SAMPLING_TIME           (0.001f)
+#define ENCODER_SAMPLING_TIME           (0.0005f)
 #define WHEEL_DIAMATER                  (32.f)       /*WHEEL diamater in mm*/
 #define PI_CONST                        (3.141592f)
 #define DISTANCE_PER_ROTATION           (WHEEL_DIAMATER*PI_CONST)
@@ -11,7 +11,7 @@
 
 #define IMPULSE_TO_MMPS_COEFF            (DISTANCE_PER_ROTATION/MOTOR_PULSE_PER_REVOLUTION/ENCODER_SAMPLING_TIME)
 
-#define ENCODER_INITIAL_VALUE           (200U)
+#define ENCODER_INITIAL_VALUE           (32000U)
 
 #define ENCODER_OVERFLOW_THRESHOLD      (10000)
 

@@ -39,6 +39,7 @@ C_SOURCES =  \
 Core/Src/IMU.c \
 Core/Src/MPU6050.c \
 Core/Src/battery.c \
+Core/Src/data_loging.c \
 Core/Src/lf_control.c \
 Core/Src/line_sensors.c \
 Core/Src/madgwick.c \

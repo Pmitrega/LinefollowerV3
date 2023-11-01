@@ -32,6 +32,7 @@
 #include "line_sensors.h"
 #include "state_machine_ctrl.h"
 #include "lf_control.h"
+#include "data_loging.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +42,15 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define OPERATION_MODE_NORMAL 0
+#define OPERATION_MODE_TEST_STRAIGHT 1
+#define OPERATION_MODE_TEST_SPIN 2
+#define CONTROL_MODE_PID_LOG_DATA 0
+#define CONTROL_MODE_NEURAL_NETWORK 1
+
+#define CONTROL_MODE CONTROL_MODE_PID_LOG_DATA
+#define OPERATION_MODE OPERATION_MODE_NORMAL
+
 // #define ACCELERMETER_ADDR 0b1101010 <<1
 /* USER CODE END PD */
 
@@ -80,6 +90,14 @@ char uart_buffer[100];
 extern RobotMode robot_state;
 extern uint8_t robot_auto_follow;
 int est_angle = 0;
+int enable_main_printing = 0;
+LogData log_data;
+#if OPERATION_MODE==OPERATION_MODE_TEST_STRAIGHT || OPERATION_MODE==OPERATION_MODE_TEST_SPIN
+  uint16_t test_buffer_left[1000];
+  uint16_t test_buffer_right[1000];
+  uint8_t enable_data_colllection = 0;
+  uint8_t send_data = 0;
+#endif
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -103,21 +121,82 @@ static void MX_TIM13_Init(void);
 /* USER CODE BEGIN 0 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
   static uint16_t tim13_div_cnt = 0;
+  static float x[3];
+  static float y[6];
+  #if OPERATION_MODE == OPERATION_MODE_TEST_STRAIGHT
+  static uint32_t go_straight_test_counter = 0;
+  #endif
+  #if OPERATION_MODE == OPERATION_MODE_TEST_SPIN
+  static uint32_t go_spin_test_counter = 0;
+  #endif
   if(htim == &htim7){
     //UpdateIMU();
+
   }
   /*
-    htim13 - Called every 1ms
+    htim13 - Called every 1/2ms
   */
   else if(htim == &htim13){
+    #if OPERATION_MODE == OPERATION_MODE_NORMAL
+      AdaptiveVelocityEstimation();
+      LeftMotorPID();
+      RightMotorPID();
+      est_angle = (int)EstimateAngle();
+        if(robot_auto_follow){
+        #if CONTROL_MODE == CONTROL_MODE_PID_LOG_DATA
+          PIDLineControl();
+        #elif CONTROL_MODE == CONTROL_MODE_NEURAL_NETWORK
+          x[1] = (float)velocity_left_int / 2400.0;
+          x[0] = (float)velocity_right_int / 2400.0;
+          x[2] = sens_to_float();
+          NeuralNetworkControl(x,y);
+          desired_left_velocity =(int)(y[0] *2400);
+          desired_right_velocity =(int)(y[3] *2400);
+        #endif
+      }
+      tim13_div_cnt +=1;
+      updateLogData(&log_data);
+    #elif OPERATION_MODE == OPERATION_MODE_TEST_STRAIGHT
+
+      if(go_straight_test_counter == 1){
+       /*start PWM*/
+        SetRightMotorPWM(5000);
+        SetLeftMotorPWM(5000);
+      }
+      else if (go_straight_test_counter == 1000)
+      {
+        /*stop PWM*/
+        SetRightMotorPWM(0);
+        SetLeftMotorPWM(0);
+        send_data = 1;
+      }
+      if(go_straight_test_counter < 1000){
+        test_buffer_left[go_straight_test_counter] = ENCODER_LEFT;
+        test_buffer_right[go_straight_test_counter] = ENCODER_RIGHT;
+      }
+    go_straight_test_counter +=1;
     AdaptiveVelocityEstimation();
-    LeftMotorPID();
-    RightMotorPID();
-    est_angle = (int)EstimateAngle();
-    if(robot_auto_follow){
-      PIDLineControl();
-    }
-    tim13_div_cnt +=1;
+    #elif OPERATION_MODE == OPERATION_MODE_TEST_SPIN
+    
+      if(go_spin_test_counter == 1){
+       /*start PWM*/
+        SetRightMotorPWM(-5000);
+        SetLeftMotorPWM(-5000);
+      }
+      else if (go_spin_test_counter == 1000)
+      {
+        /*stop PWM*/
+        SetRightMotorPWM(0);
+        SetLeftMotorPWM(0);
+        send_data = 1;
+      }
+      if(go_spin_test_counter < 1000){
+        test_buffer_left[go_spin_test_counter] = ENCODER_LEFT;
+        test_buffer_right[go_spin_test_counter] = ENCODER_RIGHT;
+      }
+      go_spin_test_counter +=1;
+      AdaptiveVelocityEstimation();
+    #endif
   }
 }
 
@@ -177,9 +256,8 @@ int main(void)
   HAL_GPIO_WritePin(WAKEUP_GPIO_Port, WAKEUP_Pin, GPIO_PIN_SET);
 
   HAL_GPIO_WritePin(STBY_TB_GPIO_Port, STBY_TB_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, 1);
   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, 1);
-
+  log_data.end = 0xDEAD;
   uint8_t read_data;
   uint8_t reading;
   uint8_t uart_buffer[100];
@@ -201,28 +279,54 @@ int main(void)
   HAL_Delay(2000);
   calibrate_gyro();
   HAL_TIM_Base_Start_IT(&htim7);
+  /*
+    htim13 is controlling test and main control algorithms
+  */
   HAL_TIM_Base_Start_IT(&htim13);
   ManageRobotStateMachine(0, 0);
+  int disable_counter = 0;
+  char dsfsk[3] = "ABC";
   // desired_left_velocity = 1000;
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(500);
+    HAL_Delay(5);
     battery_monitor();
-            // WAIT_FOR_UART();
-        /*
-        Gets encoder values
-        */
-
-    // int l = sprintf(uart_buffer, "V:%d %d\nE:%d %d\n", velocity_left_int, velocity_right_int, ENCODER_LEFT, ENCODER_RIGHT, 3.32);
-
-    //int l = sprintf(uart_buffer, "V:%u %u %u %u %u %u %u %u %u %u\n", black_detection_table[0], black_detection_table[1], black_detection_table[2], black_detection_table[3], black_detection_table[4],
-    //                                                                  black_detection_table[5], black_detection_table[6], black_detection_table[7], black_detection_table[8], black_detection_table[9]);
-    int l = sprintf(uart_buffer, "A:%d\n", est_angle);
-    HAL_UART_Transmit_IT(&huart1, uart_buffer, l);
-    // send_quaternion();
+    if(HAL_GPIO_ReadPin(BUT1_GPIO_Port, BUT1_Pin) && !robot_auto_follow){
+      HAL_Delay(500);
+      robot_auto_follow = 1;
+    }
+    if(robot_auto_follow == 1 && (disable_counter > 50000)){
+      robot_auto_follow = 0;
+      desired_left_velocity = 0;
+      desired_right_velocity = 0;
+      disable_counter = 0;
+    }
+    else if(robot_auto_follow == 1){
+      disable_counter += 1;
+      #if CONTROL_MODE == CONTROL_MODE_PID_LOG_DATA
+        HAL_UART_Transmit_IT(&huart1, (uint8_t *)&log_data, 12);
+      #endif
+    }
+    #if OPERATION_MODE == OPERATION_MODE_TEST_STRAIGHT || OPERATION_MODE == OPERATION_MODE_TEST_SPIN
+      if(send_data == 1){
+        for(int i =0;i<1000;i++){
+          int l = sprintf(uart_buffer, "%d %d\n",test_buffer_left[i], test_buffer_right[i]);
+          HAL_UART_Transmit(&huart1, uart_buffer, l, 100);
+        }
+        send_data = 0;
+      }
+    // int l = sprintf(uart_buffer, "%d %d\n", velocity_left_int, velocity_right_int);
+    // HAL_UART_Transmit(&huart1, uart_buffer, l, 100);
+    #endif
+    // int l = sprintf(uart_buffer, "V:%d %d\n", velocity_left_int, velocity_right_int);
+    // HAL_UART_Transmit_IT(&huart1, uart_buffer, l);
+    // int l = sprintf(uart_buffer, "%d %d\n",ENCODER_LEFT, ENCODER_RIGHT);
+    // if(enable_main_printing){
+    //   HAL_UART_Transmit_IT(&huart1, uart_buffer, l);
+    // }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
