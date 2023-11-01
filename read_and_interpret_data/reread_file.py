@@ -1,4 +1,5 @@
-f = open("data4.txt", "r")
+
+f = open("data_PWM.txt", "r")
 
 """
     struct LogData
@@ -15,7 +16,7 @@ sens = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 k = 0
 is_read_all = False
 
-csv_file = open("readings4.csv", "w")
+csv_file = open("data_PWM.csv", "w")
 # print(type(csv_file))
 frame = [0, 0, 0, 0, 0]
 
@@ -49,9 +50,13 @@ for i in range(1, 50000):
             if j < 4:
                 # print(read_val, end=" ")
                 frame[j] = int(read_val, 16)
+                if frame[j] > 50000:
+                    frame[j] = frame[j] - 65535
                 print(str(int(read_val, 16)), end=" ")
             else:
                 frame[4] = int(read_val, 16)
+                if frame[4] > 64000:
+                    frame[4] = frame[4] - 65536
                 int_val = int(read_val, 16)
                 sens = decToBinary(int_val)
                 print(sens, end=" ")

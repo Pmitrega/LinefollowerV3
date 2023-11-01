@@ -25,11 +25,11 @@
 
 
 float left_motor_P = 8.f;
-float left_motor_I = 0.05f;
+float left_motor_I = 0.15f;
 float left_motor_D = 0.f;
 
 float right_motor_P = 8.f;
-float right_motor_I = 0.05f;
+float right_motor_I = 0.15f;
 float right_motor_D = 0.f;
 
 
@@ -42,6 +42,8 @@ int velocity_right_int = 0;
 int desired_left_velocity;
 int desired_right_velocity;
 
+int left_PWM_val;
+int right_PWM_val;
 
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim3;
@@ -105,7 +107,6 @@ int AdaptiveVelocityEstimation(){
     else{
         velocity_left = (float)velocity_left_temp/(float)left_count*IMPULSE_TO_MMPS_COEFF;
         velocity_left_int = (int)velocity_left;
-        // velocity_left_int = (int)left_count;
         velocity_left_temp = 0;
         left_count = 0;
         velocity_update_flag = 1;
@@ -117,12 +118,35 @@ int AdaptiveVelocityEstimation(){
     else{
         velocity_right = (float)velocity_right_temp/(float)right_count*IMPULSE_TO_MMPS_COEFF;
         velocity_right_int = (int)velocity_right;
-        // velocity_right_int = (int)right_count;
         velocity_right_temp = 0;
         right_count = 0;
         velocity_update_flag = 1;
     }
 }
+
+int VelocityEstimation(){
+    const int encoder_sampling_period = 16;
+    static int encoder_sampling_timer = 0;
+    static int velocity_right_temp = 0;
+    static int velocity_left_temp = 0;
+    if(encoder_sampling_timer < encoder_sampling_period){
+        velocity_left_temp+= LeftEncoderDifference();
+        velocity_right_temp+= RightEncoderDifference();
+        encoder_sampling_timer +=1;
+    }
+    else{
+        velocity_left = (float)velocity_left_temp * IMPULSE_TO_MMPS_COEFF /(float)encoder_sampling_period;
+        velocity_right = (float)velocity_right_temp * IMPULSE_TO_MMPS_COEFF /(float)encoder_sampling_period;
+        velocity_right_int = (int)velocity_right;
+        velocity_left_int = (int)velocity_left;
+        velocity_left_temp = 0;
+        velocity_right_temp = 0;
+        encoder_sampling_timer = 0;
+    }
+
+
+}
+
 
 
 /** @brief Sets Left motor PWM with direction.
@@ -134,6 +158,7 @@ void SetLeftMotorPWM(int PWMValue){
         if(PWMValue > 10000){
             PWMValue = 10000;
         }
+        left_PWM_val = (int16_t)PWMValue;
         SET_LEFT_DIRECTION(FORWARD);
         SET_LEFT_PWM(PWMValue);
     }
@@ -142,11 +167,12 @@ void SetLeftMotorPWM(int PWMValue){
         if(PWMValue > 10000){
             PWMValue = 10000;
         }
+        //for loging
+        left_PWM_val = (int16_t)(-PWMValue);
         SET_LEFT_DIRECTION(BACKWARD);
         SET_LEFT_PWM(PWMValue);
 
     }
-    
 }
 
 /** @brief Sets Right motor PWM with direction.
@@ -158,6 +184,7 @@ void SetRightMotorPWM(int PWMValue){
         if(PWMValue > 10000){
             PWMValue = 10000;
         }
+        right_PWM_val = (int16_t)PWMValue;
         SET_RIGHT_DIRECTION(FORWARD);
         SET_RIGHT_PWM(PWMValue);
     }
@@ -166,6 +193,7 @@ void SetRightMotorPWM(int PWMValue){
         if(PWMValue > 10000){
             PWMValue = 10000;
         }
+        right_PWM_val = (int16_t)(-PWMValue);
         SET_RIGHT_DIRECTION(BACKWARD);
         SET_RIGHT_PWM(PWMValue);
 

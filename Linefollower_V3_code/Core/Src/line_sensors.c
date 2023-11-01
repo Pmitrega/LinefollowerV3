@@ -16,16 +16,27 @@ uint16_t sensor_black_value[10] = {790, 654, 549, 842, 654,
 
 uint8_t black_detection_table[10] = {0};
 
+int16_t angle_int = 0;
 
 float EstimateAngle(){
     int num_of_detections = 0;
     float est_angle = 0;
     static float last_est_angle = 0;
-    for(int i =0; i < 10; i++){
+    for(int i =0; i < 5; i++){
         if(LINE_DETECTED(i, sensor_readings[i])){
             black_detection_table[i] = 1;
             num_of_detections += 1;
-            est_angle += (4.5f-(float)i)*5.f;
+            est_angle += 5.f*(5.f-i);
+        }
+        else{
+            black_detection_table[i] = 0;
+        }
+    }
+    for(int i =5; i < 10; i++){
+        if(LINE_DETECTED(i, sensor_readings[i])){
+            black_detection_table[i] = 1;
+            num_of_detections += 1;
+            est_angle += 5.f*(4.f-i);
         }
         else{
             black_detection_table[i] = 0;
@@ -33,10 +44,13 @@ float EstimateAngle(){
         
     }
     if (num_of_detections == 0 || num_of_detections  > 2){
+        angle_int = (int16_t)last_est_angle;
         return last_est_angle;
     }
     else{
-        last_est_angle = est_angle;
+        last_est_angle = est_angle/num_of_detections;
+        est_angle = est_angle/num_of_detections;
+        angle_int = (int16_t)est_angle;
         return est_angle;
     }
 }

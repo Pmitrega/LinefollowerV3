@@ -2,5 +2,5 @@
 #define LF_CONTROL_H
 
 void PIDLineControl();
-void NeuralNetworkControl(const float x1[3], float b_y1[6]);
+void NeuralNetworkControl(const float x1, float b_y1[2]);
 #endif

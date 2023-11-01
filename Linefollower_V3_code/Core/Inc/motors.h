@@ -4,6 +4,7 @@
 #include "main.h"
 void InitEncoders();
 int AdaptiveVelocityEstimation();
+int VelocityEstimation();
 void SetLeftMotorPWM(int PWMValue);
 void SetRightMotorPWM(int PWMValue);
 void LeftMotorPID();

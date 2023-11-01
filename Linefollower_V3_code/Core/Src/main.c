@@ -45,8 +45,10 @@
 #define OPERATION_MODE_NORMAL 0
 #define OPERATION_MODE_TEST_STRAIGHT 1
 #define OPERATION_MODE_TEST_SPIN 2
+
 #define CONTROL_MODE_PID_LOG_DATA 0
 #define CONTROL_MODE_NEURAL_NETWORK 1
+#define CONTROL_MODE_NO_CONTROL 2
 
 #define CONTROL_MODE CONTROL_MODE_PID_LOG_DATA
 #define OPERATION_MODE OPERATION_MODE_NORMAL
@@ -138,7 +140,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
   */
   else if(htim == &htim13){
     #if OPERATION_MODE == OPERATION_MODE_NORMAL
-      AdaptiveVelocityEstimation();
+      VelocityEstimation();
       LeftMotorPID();
       RightMotorPID();
       est_angle = (int)EstimateAngle();
@@ -146,12 +148,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
         #if CONTROL_MODE == CONTROL_MODE_PID_LOG_DATA
           PIDLineControl();
         #elif CONTROL_MODE == CONTROL_MODE_NEURAL_NETWORK
-          x[1] = (float)velocity_left_int / 2400.0;
-          x[0] = (float)velocity_right_int / 2400.0;
-          x[2] = sens_to_float();
-          NeuralNetworkControl(x,y);
+          x[0] = (float)est_angle;
+          NeuralNetworkControl(x[0],y);
           desired_left_velocity =(int)(y[0] *2400);
-          desired_right_velocity =(int)(y[3] *2400);
+          desired_right_velocity =(int)(y[1] *2400);
         #endif
       }
       tim13_div_cnt +=1;
@@ -286,7 +286,9 @@ int main(void)
   ManageRobotStateMachine(0, 0);
   int disable_counter = 0;
   char dsfsk[3] = "ABC";
-  // desired_left_velocity = 1000;
+  uint8_t uart_debug_buffer[30];
+  // desired_left_velocity = 1200;
+  // desired_right_velocity = 1200;
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -310,6 +312,10 @@ int main(void)
         HAL_UART_Transmit_IT(&huart1, (uint8_t *)&log_data, 12);
       #endif
     }
+    #if CONTROL_MODE == CONTROL_MODE_NO_CONTROL
+      int l = sprintf(uart_debug_buffer, "%d %d\n", velocity_left_int, velocity_right_int);
+      HAL_UART_Transmit_IT(&huart1, uart_debug_buffer, l);
+    #endif
     #if OPERATION_MODE == OPERATION_MODE_TEST_STRAIGHT || OPERATION_MODE == OPERATION_MODE_TEST_SPIN
       if(send_data == 1){
         for(int i =0;i<1000;i++){
@@ -318,15 +324,7 @@ int main(void)
         }
         send_data = 0;
       }
-    // int l = sprintf(uart_buffer, "%d %d\n", velocity_left_int, velocity_right_int);
-    // HAL_UART_Transmit(&huart1, uart_buffer, l, 100);
     #endif
-    // int l = sprintf(uart_buffer, "V:%d %d\n", velocity_left_int, velocity_right_int);
-    // HAL_UART_Transmit_IT(&huart1, uart_buffer, l);
-    // int l = sprintf(uart_buffer, "%d %d\n",ENCODER_LEFT, ENCODER_RIGHT);
-    // if(enable_main_printing){
-    //   HAL_UART_Transmit_IT(&huart1, uart_buffer, l);
-    // }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
