@@ -58,3 +58,5 @@ Linefollower_V3_code/.vscode
 matlab_simulation/Robot_simulink/slprj
 *.stl
 .idea/
+slprj/
+codegen/
