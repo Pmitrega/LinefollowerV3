@@ -1,5 +1,5 @@
 
-f = open("data_PWM.txt", "r")
+f = open("data_PWM_3.txt", "r")
 
 """
     struct LogData
@@ -16,7 +16,7 @@ sens = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 k = 0
 is_read_all = False
 
-csv_file = open("data_PWM.csv", "w")
+csv_file = open("data_PWM_3.csv", "w")
 # print(type(csv_file))
 frame = [0, 0, 0, 0, 0]
 

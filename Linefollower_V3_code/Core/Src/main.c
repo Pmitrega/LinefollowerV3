@@ -53,6 +53,7 @@
 #define CONTROL_MODE CONTROL_MODE_PID_LOG_DATA
 #define OPERATION_MODE OPERATION_MODE_NORMAL
 
+#define DISABLE_MAIN_WHILE 1
 // #define ACCELERMETER_ADDR 0b1101010 <<1
 /* USER CODE END PD */
 
@@ -88,12 +89,15 @@ extern int velocity_right_int;
 extern int desired_left_velocity;
 extern int desired_right_velocity;
 extern uint8_t black_detection_table[];
+extern float sensors_normalized[];
 char uart_buffer[100];
 extern RobotMode robot_state;
 extern uint8_t robot_auto_follow;
-int est_angle = 0;
+float est_angle = 0;
 int enable_main_printing = 0;
 LogData log_data;
+extern float gyro_calib[3];
+
 #if OPERATION_MODE==OPERATION_MODE_TEST_STRAIGHT || OPERATION_MODE==OPERATION_MODE_TEST_SPIN
   uint16_t test_buffer_left[1000];
   uint16_t test_buffer_right[1000];
@@ -121,6 +125,7 @@ static void MX_TIM13_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
   static uint16_t tim13_div_cnt = 0;
   static float x[3];
@@ -135,23 +140,27 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     //UpdateIMU();
 
   }
-  /*
-    htim13 - Called every 1/2ms
-  */
   else if(htim == &htim13){
     #if OPERATION_MODE == OPERATION_MODE_NORMAL
       VelocityEstimation();
-      LeftMotorPID();
-      RightMotorPID();
-      est_angle = (int)EstimateAngle();
-        if(robot_auto_follow){
+      #if CONTROL_MODE == CONTROL_MODE_PID_LOG_DATA
+        // LeftMotorPID();
+        // RightMotorPID();
+      #endif
+        normalize_sensors();
+
+      if(robot_auto_follow){
         #if CONTROL_MODE == CONTROL_MODE_PID_LOG_DATA
+          est_angle = -NN_est_angle(sensors_normalized);
           PIDLineControl();
         #elif CONTROL_MODE == CONTROL_MODE_NEURAL_NETWORK
+          est_angle = -NN_est_angle(sensors_normalized);
           x[0] = (float)est_angle;
-          NeuralNetworkControl(x[0],y);
-          desired_left_velocity =(int)(y[0] *2400);
-          desired_right_velocity =(int)(y[1] *2400);
+          x[1] = (float)velocity_left_int;
+          x[2] = (float)velocity_right_int;
+          NeuralNetworkControl(x,y);
+          SetRightMotorPWM(y[1]);
+          SetLeftMotorPWM(y[0]);
         #endif
       }
       tim13_div_cnt +=1;
@@ -278,6 +287,7 @@ int main(void)
   TURN_ON_SENSORS();
   HAL_Delay(2000);
   calibrate_gyro();
+  HAL_Delay(200);
   HAL_TIM_Base_Start_IT(&htim7);
   /*
     htim13 is controlling test and main control algorithms
@@ -287,6 +297,12 @@ int main(void)
   int disable_counter = 0;
   char dsfsk[3] = "ABC";
   uint8_t uart_debug_buffer[30];
+  init_sensors();
+  int gyro_r_data[3];
+  float gyro_data[3];
+  int acc_r_data[3];
+  float acc_data[3];
+  float est_angle_gyro = 0;
   // desired_left_velocity = 1200;
   // desired_right_velocity = 1200;
   /* USER CODE END 2 */
@@ -294,6 +310,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    #if DISABLE_MAIN_WHILE==0
     HAL_Delay(5);
     battery_monitor();
     if(HAL_GPIO_ReadPin(BUT1_GPIO_Port, BUT1_Pin) && !robot_auto_follow){
@@ -312,6 +329,7 @@ int main(void)
         HAL_UART_Transmit_IT(&huart1, (uint8_t *)&log_data, 12);
       #endif
     }
+
     #if CONTROL_MODE == CONTROL_MODE_NO_CONTROL
       int l = sprintf(uart_debug_buffer, "%d %d\n", velocity_left_int, velocity_right_int);
       HAL_UART_Transmit_IT(&huart1, uart_debug_buffer, l);
@@ -323,6 +341,18 @@ int main(void)
           HAL_UART_Transmit(&huart1, uart_buffer, l, 100);
         }
         send_data = 0;
+      }
+    #endif
+    #else
+      if(HAL_GPIO_ReadPin(BUT2_GPIO_Port, BUT2_Pin)){
+        HAL_Delay(20);
+        UpdateIMU();
+        est_angle_gyro += gyro_calib[2] * 0.02f *180.f * 75.f;
+        normalize_sensors();
+        est_angle =  NN_est_angle(sensors_normalized);
+        int l = sprintf(uart_buffer, "%d %d %d %d %d %d %d %d %d %d %d\n", (int)(sensors_normalized[0]*1000), (int)(sensors_normalized[1]*1000),(int)(sensors_normalized[2]*1000),(int)(sensors_normalized[3]*1000),(int)(sensors_normalized[4]*1000),(int)(sensors_normalized[5]*1000),(int)(sensors_normalized[6]*1000),(int)(sensors_normalized[7]*1000),(int)(sensors_normalized[8]*1000),(int)(sensors_normalized[9]*1000), (int)est_angle_gyro*10);
+        //int l = sprintf(uart_buffer, "%d\n",est_angle);
+        HAL_UART_Transmit(&huart1, uart_buffer, l, 100);
       }
     #endif
     /* USER CODE END WHILE */

@@ -3,7 +3,7 @@ import keyboard
 import binascii
 
 logs = []
-f = open("data_PWM.txt", "w")
+f = open("data_PWM_3.txt", "w")
 rec_frames = 0
 with serial.Serial() as ser:
     ser.baudrate = 115000

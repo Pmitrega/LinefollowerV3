@@ -5,7 +5,7 @@ extern int velocity_right_int;
 
 extern int desired_left_velocity;
 extern int desired_right_velocity;
-extern int est_angle;
+extern float est_angle;
 extern int right_PWM_val;
 extern int left_PWM_val;
 extern uint8_t black_detection_table[10];
@@ -18,5 +18,5 @@ void updateLogData(LogData* l_data){
     // for(int i=0; i<10;i++){
     //     sensors_data += (uint16_t)(black_detection_table[i])<<i;
     // }
-    l_data->sensors = (int16_t)est_angle;
+    l_data->sensors = (int16_t)(est_angle*100.f);
 }

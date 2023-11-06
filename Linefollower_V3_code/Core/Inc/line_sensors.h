@@ -7,4 +7,7 @@
 float EstimateAngle();
 float sens_to_float();
 int check_no_detections();
+void init_sensors();
+void normalize_sensors();
+float NN_est_angle(const float x1[10]);
 #endif
