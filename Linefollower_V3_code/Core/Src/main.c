@@ -45,16 +45,17 @@
 #define OPERATION_MODE_NORMAL 0
 #define OPERATION_MODE_TEST_STRAIGHT 1
 #define OPERATION_MODE_TEST_SPIN 2
+#define OPERATION_MODE_TEST_MOTORS 3
 
 #define CONTROL_MODE_PID_LOG_DATA 0
 #define CONTROL_MODE_NEURAL_NETWORK 1
 #define CONTROL_MODE_NO_CONTROL 2
 
-#define CONTROL_MODE CONTROL_MODE_PID_LOG_DATA
-#define OPERATION_MODE OPERATION_MODE_NORMAL
+#define CONTROL_MODE CONTROL_MODE_NEURAL_NETWORK
+#define OPERATION_MODE OPERATION_MODE_TEST_MOTORS
 
-#define DISABLE_MAIN_WHILE 1
-// #define ACCELERMETER_ADDR 0b1101010 <<1
+#define DISABLE_MAIN_WHILE 0
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -144,8 +145,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     #if OPERATION_MODE == OPERATION_MODE_NORMAL
       VelocityEstimation();
       #if CONTROL_MODE == CONTROL_MODE_PID_LOG_DATA
-        // LeftMotorPID();
-        // RightMotorPID();
+        LeftMotorPID();
+        RightMotorPID();
       #endif
         normalize_sensors();
 
@@ -159,8 +160,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
           x[1] = (float)velocity_left_int;
           x[2] = (float)velocity_right_int;
           NeuralNetworkControl(x,y);
-          SetRightMotorPWM(y[1]);
-          SetLeftMotorPWM(y[0]);
+          SetLeftMotorPWM(y[1]);
+          SetRightMotorPWM(y[0]);
         #endif
       }
       tim13_div_cnt +=1;
@@ -205,6 +206,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
       }
       go_spin_test_counter +=1;
       AdaptiveVelocityEstimation();
+    #elif OPERATION_MODE == OPERATION_MODE_TEST_MOTORS
+      VelocityEstimation();
     #endif
   }
 }
@@ -349,11 +352,30 @@ int main(void)
         UpdateIMU();
         est_angle_gyro += gyro_calib[2] * 0.02f *180.f * 75.f;
         normalize_sensors();
-        est_angle =  NN_est_angle(sensors_normalized);
-        int l = sprintf(uart_buffer, "%d %d %d %d %d %d %d %d %d %d %d\n", (int)(sensors_normalized[0]*1000), (int)(sensors_normalized[1]*1000),(int)(sensors_normalized[2]*1000),(int)(sensors_normalized[3]*1000),(int)(sensors_normalized[4]*1000),(int)(sensors_normalized[5]*1000),(int)(sensors_normalized[6]*1000),(int)(sensors_normalized[7]*1000),(int)(sensors_normalized[8]*1000),(int)(sensors_normalized[9]*1000), (int)est_angle_gyro*10);
-        //int l = sprintf(uart_buffer, "%d\n",est_angle);
+        est_angle = NN_est_angle(sensors_normalized);
+        //int l = sprintf(uart_buffer, "%d %d %d %d %d %d %d %d %d %d %d\n", (int)(sensors_normalized[0]*1000), (int)(sensors_normalized[1]*1000),(int)(sensors_normalized[2]*1000),(int)(sensors_normalized[3]*1000),(int)(sensors_normalized[4]*1000),(int)(sensors_normalized[5]*1000),(int)(sensors_normalized[6]*1000),(int)(sensors_normalized[7]*1000),(int)(sensors_normalized[8]*1000),(int)(sensors_normalized[9]*1000), (int)est_angle_gyro*10);
+        int l = sprintf(uart_buffer, "%d\n",(int)est_angle);
         HAL_UART_Transmit(&huart1, uart_buffer, l, 100);
       }
+    #endif
+    #if OPERATION_MODE == OPERATION_MODE_TEST_MOTORS
+        int lmotor_pwm = 10000;
+        int rmotor_pwm = 10000;
+        SetLeftMotorPWM(lmotor_pwm);
+        SetRightMotorPWM(rmotor_pwm);
+        #define TEST_IT 200
+        for(int j = 0; j < TEST_IT;j++){
+          lmotor_pwm -= 10000/TEST_IT;
+          rmotor_pwm -= 10000/TEST_IT;
+          SetLeftMotorPWM(lmotor_pwm);
+          SetRightMotorPWM(rmotor_pwm);
+          for(int i =0; i <10; i++){
+            int l = sprintf(uart_buffer, "%d %d %d\n",(int)velocity_left_int, (int)velocity_right_int, (int)lmotor_pwm);
+            HAL_UART_Transmit(&huart1, uart_buffer, l, 100);
+            HAL_Delay(20);
+            }
+          }
+        
     #endif
     /* USER CODE END WHILE */
 
